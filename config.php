@@ -10,6 +10,6 @@ return [
     ],
     'stress_test' => [
         'data_source' => 'myfile.txt',
-        'max_calls_per_work_order' => 1,
+        'max_calls_per_work_order' => 3,
     ]
 ];

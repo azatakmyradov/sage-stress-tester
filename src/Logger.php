@@ -9,9 +9,9 @@ class Logger
 {
     public static function get(): MonologLogger
     {
-        $timestamp = date(DATE_ATOM);
+        $hash = hash('ripemd160', date(DATE_ATOM));
         $logger = new MonologLogger('logs');
-        $logger->pushHandler(new StreamHandler('tmp/' . $timestamp . 'log.txt'));
+        $logger->pushHandler(new StreamHandler('tmp/' . $hash . 'log.txt'));
 
         return $logger;
     }
