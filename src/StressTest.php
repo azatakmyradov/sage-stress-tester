@@ -18,7 +18,12 @@ class StressTest {
         $config = config()['stress_test'];
         $client = getClient();
 
-        $file = file_get_contents($config['data_source']);
+		if (! file_exists($config['data_source'])) {
+			die("Data source file doesn't exist");
+		}
+
+		$file = file_get_contents($config['data_source']);
+
         $work_orders = WorkOrder::parse($file);
 
         $logger = Logger::get();

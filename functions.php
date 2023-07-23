@@ -9,11 +9,17 @@ function dd(...$args): void
     die();
 }
 
+/*
+* Returns GuzzleHTTP Client
+*/
 function getClient(): \App\SOAP
 {
     return \App\SOAP::setUp(config()['soap']);
 }
 
+/*
+* Return config
+*/
 function config() {
     return require 'config.php';
 }
