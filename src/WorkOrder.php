@@ -10,6 +10,8 @@ class WorkOrder {
 
     protected array $requests;
 
+	protected $config;
+
     public function __construct($client) {
         $this->client = $client;
     }
@@ -73,6 +75,16 @@ class WorkOrder {
     {
         return $this->requests;
     }
+
+	public static function all($config) {
+		if (! file_exists($config['data_source'])) {
+			die("Data source file doesn't exist");
+		}
+
+		$file = file_get_contents($config['data_source']);
+
+        return WorkOrder::parse($file);
+	}
 
     /*
      * Parses the work orders from Sage

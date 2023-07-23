@@ -3,4 +3,9 @@
 require 'vendor/autoload.php';
 require 'functions.php';
 
-\App\StressTest::start(10);
+use App\StressTest;
+
+StressTest::new()
+	->requestPerWorkOrder(10)
+	->concurrent(10)
+	->run();

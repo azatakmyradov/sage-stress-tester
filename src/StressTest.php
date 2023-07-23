@@ -6,6 +6,36 @@ use GuzzleHttp\Pool;
 
 class StressTest {
 
+	protected int $concurrent = 1;
+
+	protected int $max_request_per_work_order = 1;
+
+	protected array $config;
+
+	protected SOAP $client;
+
+	public function __construct() {
+		$this->config = config()['stress_test'];
+        $this->client = getClient();
+	}
+
+	// return new instance
+	public static function new() {
+		return (new self);
+	}
+
+	public function requestPerWorkOrder(int $value) {
+		$this->max_request_per_work_order = $value;
+
+		return $this;
+	}
+
+	public function concurrent(int $value) {
+		$this->concurrent = $value;
+
+		return $this;
+	}
+
     /*
      * Starts Stress testing
      *
@@ -13,30 +43,21 @@ class StressTest {
      *
      * @return void
      */
-    public static function start($concurrency): void
+    public function run(): void
     {
-        $config = config()['stress_test'];
-        $client = getClient();
-
-		if (! file_exists($config['data_source'])) {
-			die("Data source file doesn't exist");
-		}
-
-		$file = file_get_contents($config['data_source']);
-
-        $work_orders = WorkOrder::parse($file);
+		$work_orders = WorkOrder::all($this->config);
 
         $logger = Logger::get();
 
-        $workOrder = new WorkOrder($client);
+        $workOrder = new WorkOrder($this->client);
         foreach ($work_orders as $work_order) {
-            for ($i = 0; $i < $config['max_calls_per_work_order']; $i++) {
+            for ($i = 0; $i < $this->max_request_per_work_order; $i++) {
                 $workOrder->initiate($work_order);
             }
         }
 
-        $pool = new Pool($client->getGuzzleClient(), $workOrder->requests(), [
-            'concurrency' => $concurrency,
+        $pool = new Pool($this->client->getGuzzleClient(), $workOrder->requests(), [
+            'concurrency' => $this->concurrent,
             'fulfilled' => function ($response, $index) use ($logger) {
                 $logger->info($response->getBody());
             },
