@@ -14,14 +14,17 @@ class StressTest {
 
 	protected SOAP $client;
 
-	public function __construct() {
+	protected $loggers;
+
+	public function __construct($loggers) {
 		$this->config = config()['stress_test'];
         $this->client = getClient();
+		$this->loggers = $loggers;
 	}
 
 	// return new instance
-	public static function new() {
-		return (new self);
+	public static function new($loggers) {
+		return (new self($loggers));
 	}
 
 	public function requestPerWorkOrder(int $value) {
@@ -47,8 +50,6 @@ class StressTest {
     {
 		$work_orders = WorkOrder::all($this->config);
 
-        $logger = Logger::get();
-
         $workOrder = new WorkOrder($this->client);
         foreach ($work_orders as $work_order) {
             for ($i = 0; $i < $this->max_request_per_work_order; $i++) {
@@ -58,11 +59,28 @@ class StressTest {
 
         $pool = new Pool($this->client->getGuzzleClient(), $workOrder->requests(), [
             'concurrency' => $this->concurrent,
-            'fulfilled' => function ($response, $index) use ($logger) {
-                $logger->info($response->getBody());
+            'fulfilled' => function ($response, $index) use ($workOrder) {
+				$id = hash('ripemd160', date(DATE_ATOM) . rand());
+
+				$requestBody = $workOrder->requests()[$index]->getBody();
+				$this->loggers['requests']->info("{$id} - {$requestBody}");
+
+				$log = $response->getBody();
+				$xml = simplexml_load_string($log);
+				// TODO: come back here to see if it changes
+				$resultXml = (string) $xml->xpath('//wss:runResponse/runReturn/resultXml')[0];
+				$resultJson = json_decode($resultXml, true);
+
+				$this->loggers['workorders']->info($id . ' ' . $response->getBody());
+
+				if (isset($resultJson['GRP3'])) {
+					$this->checkTracking($resultJson, $id);
+				} else {
+					$this->loggers['tracking']->info($id . ' GRP3 doesnt exist');
+				}
             },
-            'rejected' => function ($reason, $index) use ($logger) {
-                $logger->info($reason->getMessage());
+            'rejected' => function ($reason, $index) {
+                // $logger->info($reason->getMessage());
             },
         ]);
 
@@ -72,4 +90,30 @@ class StressTest {
         // Force the pool of requests to complete.
         $promise->wait();
     }
+
+	public function checkTracking($response, $id) {
+		$trackingNumber = $response['GRP3']['MFGTRKNUM'];
+
+		$params = [
+			'GRP1' => [
+				'TRACKING' => $trackingNumber
+			]
+		];
+
+		$response = getClient()->run('CHECKMFG', $params);
+		$log = $response->getBody();
+
+		$xml = simplexml_load_string($log);
+		$statusValue = (int) $xml->xpath('//wss:runResponse/runReturn/status')[0];
+		$multiRefs = $xml->xpath('//multiRef');
+
+		if (! $statusValue) {
+			$message = (string) $multiRefs[0]->message;
+			$message = ltrim($message, ';');
+			$this->loggers['tracking']->info($id . ' ' . $message);
+			return;
+		}
+
+		$this->loggers['tracking']->info($id . ' Tracking numbers created successfully');
+	}
 }
