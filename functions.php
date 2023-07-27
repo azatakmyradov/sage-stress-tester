@@ -23,3 +23,10 @@ function getClient(): \App\SOAP
 function config() {
     return require 'config.php';
 }
+
+/*
+* Return unique id
+*/
+function getUniqueId() {
+	return hash('ripemd160', date(DATE_ATOM) . rand());
+}

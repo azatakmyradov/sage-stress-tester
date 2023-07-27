@@ -4,15 +4,42 @@ require 'vendor/autoload.php';
 require 'functions.php';
 
 use App\Logger;
-use App\StressTest;
+use App\Tests\WorkOrders\ProductionTracking;
+use App\Tests\WorkOrders\ReintegrateWorkOrder;
+use App\WorkOrder;
+
+// $loggers = [
+// 	'workorders' => new Logger('workorders'),
+// 	'tracking' => new Logger('tracking'),
+// 	'requests' => new Logger('requests')
+// ];
+
+// $productionTracking = new ProductionTracking(
+// 	1, 1, $loggers, getClient()
+// );
+// $productionTracking->run();
 
 $loggers = [
-	'workorders' => new Logger('workorders'),
-	'tracking' => new Logger('tracking'),
+	'response' => new Logger('response'),
 	'requests' => new Logger('requests')
 ];
 
-StressTest::new($loggers)
-	->requestPerWorkOrder(20)
-	->concurrent(1)
-	->run();
+$reintegrate = new ReintegrateWorkOrder(
+	concurrent: 20,
+	max_calls: 400,
+	loggers: $loggers,
+	client: getClient()
+);
+
+$workOrder = WorkOrder::all(config()['stress_test'])[0];
+$component = $workOrder['components'][0];
+$workOrder = $workOrder['product'];
+$reintegrate->run([
+	'I_FCY' => $workOrder['MFGFCY'],
+	'I_MFGNUM' => $workOrder['MFGNUM'],
+	'I_ITM' => $component['ITM'],
+	'I_QTY' => $component['QTY'],
+	'I_LOC' => 'QUA01',
+	'I_LOT' => $component['LOT'],
+	'I_MVTDES' => "description here"
+]);

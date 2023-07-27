@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Tests\WorkOrders\InitiateWorkOrder;
 use GuzzleHttp\Pool;
 
 class StressTest {
@@ -50,19 +51,32 @@ class StressTest {
     {
 		$work_orders = WorkOrder::all($this->config);
 
-        $workOrder = new WorkOrder($this->client);
+        $workOrder = new InitiateWorkOrder($this->client);
         foreach ($work_orders as $work_order) {
             for ($i = 0; $i < $this->max_request_per_work_order; $i++) {
                 $workOrder->initiate($work_order);
             }
         }
 
-        $pool = new Pool($this->client->getGuzzleClient(), $workOrder->requests(), [
+		// Create a pool from requests
+        $pool = $this->createPool(
+			$workOrder->requests()
+		);
+
+        // Initiate the transfers and create a promise
+        $promise = $pool->promise();
+
+        // Force the pool of requests to complete.
+        $promise->wait();
+    }
+
+	public function createPool($requests) {
+		return new Pool($this->client->getGuzzleClient(), $requests, [
             'concurrency' => $this->concurrent,
-            'fulfilled' => function ($response, $index) use ($workOrder) {
+            'fulfilled' => function ($response, $index) use ($requests) {
 				$id = hash('ripemd160', date(DATE_ATOM) . rand());
 
-				$requestBody = $workOrder->requests()[$index]->getBody();
+				$requestBody = $requests[$index]->getBody();
 				$this->loggers['requests']->info("{$id} - {$requestBody}");
 
 				$log = $response->getBody();
@@ -73,26 +87,23 @@ class StressTest {
 
 				$this->loggers['workorders']->info($id . ' ' . $response->getBody());
 
-				if (isset($resultJson['GRP3'])) {
-					$this->checkTracking($resultJson, $id);
-				} else {
-					$this->loggers['tracking']->info($id . ' GRP3 doesnt exist');
-				}
+				$this->checkTracking($resultJson, $id);
             },
             'rejected' => function ($reason, $index) {
                 // $logger->info($reason->getMessage());
             },
         ]);
-
-        // Initiate the transfers and create a promise
-        $promise = $pool->promise();
-
-        // Force the pool of requests to complete.
-        $promise->wait();
-    }
+	}
 
 	public function checkTracking($response, $id) {
-		$trackingNumber = $response['GRP3']['MFGTRKNUM'];
+		if (isset($response['GRP3'])) {
+			$trackingNumber = $response['GRP3']['MFGTRKNUM'];
+		} else if (isset($response['PARAM_OUT'])) {
+			$trackingNumber = $response['PARAM_OUT']['P_MFGTRKNUM'];
+		} else {
+			$this->loggers['tracking']->info($id . ' Tracking number was not found in response');
+			return;
+		}
 
 		$params = [
 			'GRP1' => [
