@@ -15,7 +15,10 @@ use App\WorkOrder;
 // ];
 
 // $productionTracking = new ProductionTracking(
-// 	1, 1, $loggers, getClient()
+// 	concurrent: 20,
+// 	max_calls: 1,
+// 	loggers: $loggers,
+// 	client: getClient()
 // );
 // $productionTracking->run();
 
@@ -25,8 +28,8 @@ $loggers = [
 ];
 
 $reintegrate = new ReintegrateWorkOrder(
-	concurrent: 20,
-	max_calls: 400,
+	concurrent: 1,
+	max_calls: 200,
 	loggers: $loggers,
 	client: getClient()
 );
