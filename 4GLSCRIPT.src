@@ -1,0 +1,48 @@
+Local Char SITE_NAME : SITE_NAME = 'NA011'
+Local Char LOCATION : LOCATION = "QUA01"
+
+Call WO_GET(SITE_NAME, LOCATION)
+End
+
+Subprog WO_GET(SITE,LOCATION)
+    Value Char SITE
+    Value Char LOCATION
+
+    Local Integer COUNTER
+    Local Clbfile TEXT_LINES(2)(1..100)
+
+    If !clalev([F:MFG]) : Local File MFGHEAD [F:MFG] : Endif
+    If !clalev([F:MFM]) : Local File MFGMAT [F:MFM] : Endif
+    If !clalev([F:STO]) : Local File STOCK [F:STO] : Endif
+
+    Filter [F:MFG] Where [F:MFG]MFGFCY = SITE and [F:MFG]MFGSTA < 5
+    Read [F:MFG]
+
+	For [F:MFG]
+		COUNTER += 1
+		
+		TEXT_LINES(COUNTER) = 'MFGFCY=' + [F:MFG]MFGFCY + ';MFGNUM=' + [F:MFG]MFGNUM + ';MFGTRKDAT=' + ';TRSNUM=STD'
+	&  + ';LOC=' + LOCATION + ';STA=A' + ';QTYSTU=1' +';UOM=UN' + ';LOT=' + ';MVTDES=PID002|'
+
+		Filter [F:MFM] Where [F:MFM]MFGNUM = [F:MFG]MFGNUM
+
+		For [F:MFM]
+			Filter [F:STO] Where ITMREF = [F:MFM]ITMREF and STOFCY = SITE
+			Read [F:STO]STO0 First
+			TEXT_LINES(COUNTER) = TEXT_LINES(COUNTER) + 'ITM=' + [F:MFM]ITMREF + ';QTY=1' + ';LOT=' + [F:STO]LOT + ';LOC=' + [F:STO]LOC + '&'
+
+			Filter[F:STO]
+		Next
+		Filter [F:MFM]
+		
+		TEXT_LINES(COUNTER) += "#"
+	Next
+
+	Openo "C:\Sage\SAGEX3\folders\SEED\tmp\my_file.txt", 0 Using [TXT]
+	Iomode adxirs '' Using [TXT]
+	For I=1 To COUNTER
+		Wrseq TEXT_LINES(I) Using [TXT]
+	Next I
+	Openo Using [TXT]
+
+End
