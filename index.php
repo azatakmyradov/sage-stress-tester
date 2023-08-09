@@ -8,6 +8,7 @@ use App\Tests\WorkOrders\ProductionTracking;
 use App\Tests\WorkOrders\ReintegrateWorkOrder;
 use App\WorkOrder;
 
+// START TEST
 // $loggers = [
 // 	'workorders' => new Logger('workorders'),
 // 	'tracking' => new Logger('tracking'),
@@ -21,7 +22,9 @@ use App\WorkOrder;
 // 	client: getClient()
 // );
 // $productionTracking->run();
+// END TEST
 
+// START TEST
 $loggers = [
 	'response' => new Logger('response'),
 	'requests' => new Logger('requests')
@@ -46,3 +49,4 @@ $reintegrate->run([
 	'I_LOT' => $component['LOT'],
 	'I_MVTDES' => "description here"
 ]);
+// END TEST
